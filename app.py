@@ -43,6 +43,9 @@ def validate_registration(username, password, confirm_password, name):
 
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         return False, "用户名只能包含字母、数字和下划线"
+    
+    if not re.match(r'^[a-zA-Z]+$', name[0]):
+        return False, "昵称必须以字母开头"
 
     if len(password) < 6:
         return False, "密码长度不能少于 6 个字符"
@@ -56,8 +59,6 @@ def validate_registration(username, password, confirm_password, name):
     if len(name) > 50:
         return False, "昵称长度不能超过 50 个字符"
     
-    if not re.match(r'^[a-zA-Z]+$', name[1]):
-        return False, "昵称必须以字母开头"
 
     if username in USERS:
         return False, "用户名已存在"
