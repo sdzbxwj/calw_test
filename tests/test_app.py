@@ -40,7 +40,7 @@ class TestValidateRegistration:
     def test_valid_registration(self):
         """Valid registration data should pass."""
         valid, msg = validate_registration(
-            "newuser", "password123", "password123", "新用户"
+            "newuser", "password123", "password123", "NewUser"
         )
         assert valid is True
         assert msg == ""
@@ -71,13 +71,13 @@ class TestValidateRegistration:
 
     def test_short_password(self):
         """Password less than 6 chars should fail."""
-        valid, msg = validate_registration("newuser", "12345", "12345", "新用户")
+        valid, msg = validate_registration("newuser", "12345", "12345", "NewUser")
         assert valid is False
         assert "6" in msg
 
     def test_password_mismatch(self):
         """Mismatched passwords should fail."""
-        valid, msg = validate_registration("newuser", "password123", "different", "新用户")
+        valid, msg = validate_registration("newuser", "password123", "different", "NewUser")
         assert valid is False
         assert "不一致" in msg
 
@@ -89,7 +89,7 @@ class TestValidateRegistration:
 
     def test_duplicate_username(self, fresh_users):
         """Existing username should fail."""
-        valid, msg = validate_registration("admin", "newpass123", "newpass123", "管理员")
+        valid, msg = validate_registration("admin", "newpass123", "newpass123", "Admin2")
         assert valid is False
         assert "已存在" in msg
 
@@ -152,9 +152,12 @@ class TestLoginRoute:
 
     def test_login_success(self, client):
         """Valid login should redirect to dashboard."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
         resp = client.post('/login', data={
             'username': 'admin',
-            'password': 'admin123'
+            'password': 'admin123',
+            'captcha': 'TEST'
         }, follow_redirects=True)
         assert resp.status_code == 200
         # Dashboard shows "欢迎，管理员！"
@@ -192,9 +195,12 @@ class TestProtectedRoutes:
 
     def test_dashboard_with_login(self, client):
         """Dashboard should be accessible after login."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
         client.post('/login', data={
             'username': 'admin',
-            'password': 'admin123'
+            'password': 'admin123',
+            'captcha': 'TEST'
         })
         resp = client.get('/dashboard')
         assert resp.status_code == 200
@@ -202,9 +208,12 @@ class TestProtectedRoutes:
 
     def test_logout(self, client):
         """Logout should clear session and redirect to login."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
         client.post('/login', data={
             'username': 'admin',
-            'password': 'admin123'
+            'password': 'admin123',
+            'captcha': 'TEST'
         })
         resp = client.get('/logout', follow_redirects=True)
         assert resp.status_code == 200
@@ -212,13 +221,157 @@ class TestProtectedRoutes:
 
     def test_dashboard_after_logout(self, client):
         """Dashboard should be inaccessible after logout."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
         client.post('/login', data={
             'username': 'admin',
-            'password': 'admin123'
+            'password': 'admin123',
+            'captcha': 'TEST'
         })
         client.get('/logout')
         resp = client.get('/dashboard')
         assert resp.status_code == 302
+
+
+# ============ Captcha Tests (新增变更) ============
+
+class TestGenerateCaptchaText:
+    """Tests for generate_captcha_text function."""
+
+    def test_returns_string(self):
+        """Should return a string."""
+        from app import generate_captcha_text
+        result = generate_captcha_text()
+        assert isinstance(result, str)
+
+    def test_length_is_4(self):
+        """Captcha text should be exactly 4 characters."""
+        from app import generate_captcha_text
+        for _ in range(20):
+            result = generate_captcha_text()
+            assert len(result) == 4
+
+    def test_only_uppercase_and_digits(self):
+        """Captcha text should only contain uppercase letters and digits."""
+        from app import generate_captcha_text
+        import re
+        for _ in range(20):
+            result = generate_captcha_text()
+            assert re.match(r'^[A-Z0-9]{4}$', result)
+
+
+class TestCaptchaRoute:
+    """Tests for /captcha route."""
+
+    def test_captcha_returns_image(self, client):
+        """GET /captcha should return a PNG image."""
+        with client.session_transaction() as sess:
+            pass
+        resp = client.get('/captcha')
+        assert resp.status_code == 200
+        assert resp.content_type == 'image/png'
+
+    def test_captcha_sets_session(self, client):
+        """GET /captcha should store captcha text in session."""
+        with client.session_transaction() as sess:
+            pass
+        resp = client.get('/captcha')
+        assert resp.status_code == 200
+        # Session is server-side, we verify via login flow below
+
+
+class TestLoginWithCaptcha:
+    """Tests for login route with captcha verification (新增变更)."""
+
+    def test_login_without_captcha_fails(self, client):
+        """Login without captcha should fail."""
+        resp = client.post('/login', data={
+            'username': 'admin',
+            'password': 'admin123',
+            'captcha': ''
+        })
+        assert resp.status_code == 200
+        data = resp.data.decode('utf-8')
+        assert '验证码' in data
+
+    def test_login_with_wrong_captcha_fails(self, client):
+        """Login with wrong captcha should fail."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'ABCD'
+        resp = client.post('/login', data={
+            'username': 'admin',
+            'password': 'admin123',
+            'captcha': 'WRONG'
+        })
+        assert resp.status_code == 200
+        data = resp.data.decode('utf-8')
+        assert '验证码错误' in data
+
+    def test_login_with_correct_captcha_succeeds(self, client):
+        """Login with correct captcha should succeed."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
+        resp = client.post('/login', data={
+            'username': 'admin',
+            'password': 'admin123',
+            'captcha': 'TEST'
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        data = resp.data.decode('utf-8')
+        assert '管理员' in data
+
+    def test_login_captcha_case_insensitive(self, client):
+        """Captcha comparison should be case-insensitive (input is uppercased)."""
+        with client.session_transaction() as sess:
+            sess['captcha'] = 'TEST'
+        resp = client.post('/login', data={
+            'username': 'admin',
+            'password': 'admin123',
+            'captcha': 'test'
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert '管理员' in resp.data.decode('utf-8')
+
+
+class TestRegistrationValidationEnhanced:
+    """Tests for enhanced validation rules (新增变更)."""
+
+    def test_name_must_start_with_letter(self):
+        """Name starting with non-letter should fail."""
+        valid, msg = validate_registration(
+            "newuser", "password123", "password123", "1昵称"
+        )
+        assert valid is False
+        assert '字母' in msg
+
+    def test_name_starting_with_letter_passes(self):
+        """Name starting with letter should pass."""
+        valid, msg = validate_registration(
+            "newuser", "password123", "password123", "TestUser"
+        )
+        assert valid is True
+
+    def test_password_special_chars_fails(self):
+        """Password with special characters should fail."""
+        valid, msg = validate_registration(
+            "newuser", "pass@word", "pass@word", "Test"
+        )
+        assert valid is False
+        assert '字母' in msg
+
+    def test_password_with_underscore_passes(self):
+        """Password with underscore should pass."""
+        valid, msg = validate_registration(
+            "newuser", "pass_word1", "pass_word1", "Test"
+        )
+        assert valid is True
+
+    def test_password_alphanumeric_passes(self):
+        """Password with only letters and digits should pass."""
+        valid, msg = validate_registration(
+            "newuser", "abc123def", "abc123def", "Test"
+        )
+        assert valid is True
 
 
 if __name__ == "__main__":

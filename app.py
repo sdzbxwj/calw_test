@@ -46,13 +46,11 @@ def captcha_image():
     """Generate and return captcha image."""
     captcha_text = generate_captcha_text()
     session['captcha'] = captcha_text
-    image = captcha.generate(captcha_text)
-    from io import BytesIO
-    buf = BytesIO()
-    image.save(buf, format='PNG')
-    buf.seek(0)
+    # captcha.generate() returns a BytesIO object directly
+    image_data = captcha.generate(captcha_text)
     from flask import send_file
-    return send_file(buf, mimetype='image/png')
+    image_data.seek(0)
+    return send_file(image_data, mimetype='image/png')
 
 
 def validate_registration(username, password, confirm_password, name):
