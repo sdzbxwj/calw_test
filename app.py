@@ -6,9 +6,15 @@ A minimal Flask-based login and registration system.
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import functools
 import re
+from captcha.image import ImageCaptcha
+import random
+import string
 
 app = Flask(__name__)
 app.secret_key = "calw_test_secret_key_2026"
+
+# Initialize captcha
+captcha = ImageCaptcha(width=120, height=50)
 
 # Simple user database (in-memory for demo)
 USERS = {
@@ -28,6 +34,25 @@ def login_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def generate_captcha_text():
+    """Generate random captcha text."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+
+
+@app.route('/captcha')
+def captcha_image():
+    """Generate and return captcha image."""
+    captcha_text = generate_captcha_text()
+    session['captcha'] = captcha_text
+    image = captcha.generate(captcha_text)
+    from io import BytesIO
+    buf = BytesIO()
+    image.save(buf, format='PNG')
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='image/png')
 
 
 def validate_registration(username, password, confirm_password, name):
@@ -78,6 +103,12 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        captcha_input = request.form.get("captcha", "").strip().upper()
+
+        # Verify captcha
+        if 'captcha' not in session or captcha_input != session['captcha']:
+            flash("验证码错误", "danger")
+            return render_template("login.html")
 
         user = USERS.get(username)
 
