@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>calw_test - 登录</title>
+    <title>calw_test - 注册</title>
     <style>
         * {
             margin: 0;
@@ -94,11 +94,6 @@
             color: #0a0;
         }
 
-        .alert-warning {
-            background: #ffe;
-            color: #a90;
-        }
-
         .alert-info {
             background: #eef;
             color: #00a;
@@ -121,13 +116,14 @@
             border-radius: 8px;
             font-size: 13px;
             color: #666;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>🔐 用户登录</h1>
+        <h1>📝 用户注册</h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -137,26 +133,32 @@
         {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required placeholder="请输入用户名">
+                <input type="text" id="username" name="username" required
+                       placeholder="3-20个字符，字母/数字/下划线">
+            </div>
+            <div class="form-group">
+                <label for="name">昵称</label>
+                <input type="text" id="name" name="name" required
+                       placeholder="显示名称">
             </div>
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" required placeholder="请输入密码">
+                <input type="password" id="password" name="password" required
+                       placeholder="至少6个字符">
             </div>
-            <button type="submit">登录</button>
+            <div class="form-group">
+                <label for="confirm_password">确认密码</label>
+                <input type="password" id="confirm_password" name="confirm_password" required
+                       placeholder="再次输入密码">
+            </div>
+            <button type="submit">注册</button>
         </form>
 
-        <div class="hint">
-            💡 测试账号：<b>admin / admin123</b> 或 <b>user1 / user123</b>
-        </div>
-
         <div class="back-link">
-            <a href="{{ url_for('index') }}">返回首页</a>
-            &nbsp;|&nbsp;
-            <a href="{{ url_for('register') }}">注册账号</a>
+            <a href="{{ url_for('login') }}">已有账号？去登录</a>
         </div>
     </div>
 </body>
