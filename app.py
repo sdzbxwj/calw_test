@@ -46,6 +46,9 @@ def validate_registration(username, password, confirm_password, name):
 
     if len(password) < 6:
         return False, "密码长度不能少于 6 个字符"
+    
+    if not re.match(r'^[a-zA-Z0-9_]+$', password):
+        return False, "密码只能包含字母、数字和下划线"
 
     if password != confirm_password:
         return False, "两次输入的密码不一致"
