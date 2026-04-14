@@ -85,6 +85,9 @@ def validate_registration(username, password, confirm_password, name):
 
     if username in USERS:
         return False, "用户名已存在"
+    
+    if name in [user["name"] for user in USERS.values()]:
+        return False, "昵称已存在"
 
     return True, ""
 
