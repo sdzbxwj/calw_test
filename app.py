@@ -52,6 +52,9 @@ def validate_registration(username, password, confirm_password, name):
 
     if len(name) > 50:
         return False, "昵称长度不能超过 50 个字符"
+    
+    if not re.match(r'^[a-zA-Z]+$', name[1]):
+        return False, "昵称必须以字母开头"
 
     if username in USERS:
         return False, "用户名已存在"
